@@ -1,9 +1,10 @@
 # duf
 
-[![Latest Release](https://img.shields.io/github/release/muesli/duf.svg)](https://github.com/muesli/duf/releases)
-[![Build Status](https://github.com/muesli/duf/workflows/build/badge.svg)](https://github.com/muesli/duf/actions)
-[![Go ReportCard](https://goreportcard.com/badge/muesli/duf)](https://goreportcard.com/report/muesli/duf)
-[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://pkg.go.dev/github.com/muesli/duf)
+[![Latest Release](https://img.shields.io/github/release/muesli/duf.svg?style=for-the-badge)](https://github.com/muesli/duf/releases)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/muesli/duf)
+[![Software License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](/LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/muesli/duf/build.yml?style=for-the-badge&branch=master)](https://github.com/muesli/duf/actions)
+[![Go ReportCard](https://goreportcard.com/badge/github.com/muesli/duf?style=for-the-badge)](https://goreportcard.com/report/muesli/duf)
 
 Disk Usage/Free Utility (Linux, BSD, macOS & Windows)
 
@@ -23,13 +24,15 @@ Disk Usage/Free Utility (Linux, BSD, macOS & Windows)
 
 #### Linux
 - Arch Linux: `pacman -S duf`
+- Ubuntu 22.04 / Debian unstable: `apt install duf`
 - Nix: `nix-env -iA nixpkgs.duf`
 - Void Linux: `xbps-install -S duf`
-- Snap: `sudo snap install duf-utility` ([snapcraft.io](https://snapcraft.io/duf-utility))
+- Gentoo Linux: `emerge sys-fs/duf`
 - [Packages](https://github.com/muesli/duf/releases) in Alpine, Debian & RPM formats
 
 #### BSD
 - FreeBSD: `pkg install duf`
+- OpenBSD: `pkg_add duf`
 
 #### macOS
 - with [Homebrew](https://brew.sh/): `brew install duf`
@@ -47,7 +50,7 @@ Disk Usage/Free Utility (Linux, BSD, macOS & Windows)
 
 ### From source
 
-Make sure you have a working Go environment (Go 1.12 or higher is required).
+Make sure you have a working Go environment (Go 1.17 or higher is required).
 See the [install instructions](https://golang.org/doc/install.html).
 
 Compiling duf is easy, simply run:
@@ -115,6 +118,14 @@ If duf doesn't detect your terminal's colors correctly, you can set a theme:
 
     duf --theme light
 
+### Color-coding & Thresholds
+
+duf highlights the availability & usage columns in red, green, or yellow,
+depending on how much space is still available. You can set your own thresholds:
+
+    duf --avail-threshold="10G,1G"
+    duf --usage-threshold="0.5,0.9"
+
 ### Bonus
 
 If you prefer your output as JSON:
@@ -127,3 +138,10 @@ Users of `oh-my-zsh` should be aware that it already defines an alias called
 `duf`, which you will have to remove in order to use `duf`:
 
     unalias duf
+
+## Feedback
+
+Got some feedback or suggestions? Please open an issue or drop me a note!
+
+* [Twitter](https://twitter.com/mueslix)
+* [The Fediverse](https://mastodon.social/@fribbledom)

@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -10,12 +12,14 @@ import (
 	"github.com/muesli/termenv"
 )
 
+// TableOptions contains all options for the table.
 type TableOptions struct {
 	Columns []int
 	SortBy  int
 	Style   table.Style
 }
 
+// Column defines a column.
 type Column struct {
 	ID        string
 	Name      string
@@ -23,23 +27,21 @@ type Column struct {
 	Width     int
 }
 
-var (
-	// "Mounted on", "Size", "Used", "Avail", "Use%", "Inodes", "Used", "Avail", "Use%", "Type", "Filesystem"
-	// mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem
-	columns = []Column{
-		{ID: "mountpoint", Name: "Mounted on", SortIndex: 1},
-		{ID: "size", Name: "Size", SortIndex: 12, Width: 7},
-		{ID: "used", Name: "Used", SortIndex: 13, Width: 7},
-		{ID: "avail", Name: "Avail", SortIndex: 14, Width: 7},
-		{ID: "usage", Name: "Use%", SortIndex: 15, Width: 6},
-		{ID: "inodes", Name: "Inodes", SortIndex: 16, Width: 7},
-		{ID: "inodes_used", Name: "Used", SortIndex: 17, Width: 7},
-		{ID: "inodes_avail", Name: "Avail", SortIndex: 18, Width: 7},
-		{ID: "inodes_usage", Name: "Use%", SortIndex: 19, Width: 6},
-		{ID: "type", Name: "Type", SortIndex: 10},
-		{ID: "filesystem", Name: "Filesystem", SortIndex: 11},
-	}
-)
+// "Mounted on", "Size", "Used", "Avail", "Use%", "Inodes", "IUsed", "IAvail", "IUse%", "Type", "Filesystem"
+// mountpoint, size, used, avail, usage, inodes, inodes_used, inodes_avail, inodes_usage, type, filesystem
+var columns = []Column{
+	{ID: "mountpoint", Name: "Mounted on", SortIndex: 1},
+	{ID: "size", Name: "Size", SortIndex: 12, Width: 7},
+	{ID: "used", Name: "Used", SortIndex: 13, Width: 7},
+	{ID: "avail", Name: "Avail", SortIndex: 14, Width: 7},
+	{ID: "usage", Name: "Use%", SortIndex: 15, Width: 6},
+	{ID: "inodes", Name: "Inodes", SortIndex: 16, Width: 7},
+	{ID: "inodes_used", Name: "IUsed", SortIndex: 17, Width: 7},
+	{ID: "inodes_avail", Name: "IAvail", SortIndex: 18, Width: 7},
+	{ID: "inodes_usage", Name: "IUse%", SortIndex: 19, Width: 6},
+	{ID: "type", Name: "Type", SortIndex: 10},
+	{ID: "filesystem", Name: "Filesystem", SortIndex: 11},
+}
 
 // printTable prints an individual table of mounts.
 func printTable(title string, m []Mount, opts TableOptions) {
@@ -133,7 +135,7 @@ func printTable(title string, m []Mount, opts TableOptions) {
 	}
 	tab.SetTitle("%d %s %s", tab.Length(), title, suffix)
 
-	//tab.AppendFooter(table.Row{fmt.Sprintf("%d %s", tab.Length(), title)})
+	// tab.AppendFooter(table.Row{fmt.Sprintf("%d %s", tab.Length(), title)})
 	sortMode := table.Asc
 	if opts.SortBy >= 12 {
 		sortMode = table.AscNumeric
@@ -152,11 +154,13 @@ func sizeTransformer(val interface{}) string {
 func spaceTransformer(val interface{}) string {
 	free := val.(uint64)
 
-	var s = termenv.String(sizeToString(free))
+	s := termenv.String(sizeToString(free))
+	redAvail, _ := stringToSize(strings.Split(*availThreshold, ",")[1])
+	yellowAvail, _ := stringToSize(strings.Split(*availThreshold, ",")[0])
 	switch {
-	case free < 1<<30:
+	case free < redAvail:
 		s = s.Foreground(theme.colorRed)
-	case free < 10*1<<30:
+	case free < yellowAvail:
 		s = s.Foreground(theme.colorYellow)
 	default:
 		s = s.Foreground(theme.colorGreen)
@@ -183,10 +187,12 @@ func barTransformer(val interface{}) string {
 	}
 
 	// apply color to progress-bar
+	redUsage, _ := strconv.ParseFloat(strings.Split(*usageThreshold, ",")[1], 64)
+	yellowUsage, _ := strconv.ParseFloat(strings.Split(*usageThreshold, ",")[0], 64)
 	switch {
-	case usage >= 0.9:
+	case usage >= redUsage:
 		s = s.Foreground(theme.colorRed)
-	case usage >= 0.5:
+	case usage >= yellowUsage:
 		s = s.Foreground(theme.colorYellow)
 	default:
 		s = s.Foreground(theme.colorGreen)
@@ -257,6 +263,43 @@ func sizeToString(size uint64) (str string) {
 		str = fmt.Sprintf("%dB", size)
 	}
 
+	return
+}
+
+// stringToSize transforms an SI size into a number.
+func stringToSize(s string) (size uint64, err error) {
+	regex := regexp.MustCompile(`^(\d+)([KMGTPE]?)$`)
+	matches := regex.FindStringSubmatch(s)
+	if len(matches) == 0 {
+		return 0, fmt.Errorf("'%s' is not valid, must have integer with optional SI prefix", s)
+	}
+
+	num, err := strconv.ParseUint(matches[1], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if matches[2] != "" {
+		prefix := matches[2]
+		switch prefix {
+		case "K":
+			size = num << 10
+		case "M":
+			size = num << 20
+		case "G":
+			size = num << 30
+		case "T":
+			size = num << 40
+		case "P":
+			size = num << 50
+		case "E":
+			size = num << 60
+		default:
+			err = fmt.Errorf("prefix '%s' not allowed, valid prefixes are K, M, G, T, P, E", prefix)
+			return
+		}
+	} else {
+		size = num
+	}
 	return
 }
 
